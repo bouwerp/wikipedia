@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestListAllPages(t *testing.T) {
+func TestListAllCategories(t *testing.T) {
 	// general pattern for getting all pages from A to B in batches of 200
 	var pages []Page
 	apContinue := ""
@@ -14,7 +14,7 @@ func TestListAllPages(t *testing.T) {
 		response, err := ListAllPages(ListAllPagesRequest{
 			From:     "A",
 			To:       "B",
-			Limit:    200,
+			Limit:    500,
 			Continue: apContinue,
 		})
 		if err != nil {
