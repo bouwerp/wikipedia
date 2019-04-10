@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // RedirectType to be utilised as a redirect filter in the `allpages` query
@@ -16,12 +17,35 @@ const All RedirectType = "all"
 const Redirects RedirectType = "redirects"
 const NonRedirects RedirectType = "nonredirects"
 
-// ProtectionType to be utilised as a protection type filter in the `allpages` query
+// ProtectionTypes to be utilised as a protection type filter in the `allpages` query
 type ProtectionType string
 
 const Edit ProtectionType = "edit"
 const Move ProtectionType = "move"
 const Upload ProtectionType = "upload"
+
+type ProtectionLevelType string
+
+const Autoconfirmed ProtectionLevelType = "autoconfirmed"
+const Sysop ProtectionLevelType = "sysop"
+
+type ProtectionFilterCascadeType string
+
+const Cascading ProtectionFilterCascadeType = "cascading"
+const NonCascading ProtectionFilterCascadeType = "noncascading"
+const AllCascading ProtectionFilterCascadeType = "all"
+
+type LangLinksFilterType string
+
+const WithLangLinks LangLinksFilterType = "withlanglinks"
+const WithoutLangLinks LangLinksFilterType = "withoutlanglinks"
+const AllLangLinks LangLinksFilterType = "all"
+
+type ProtectionExpiryType string
+
+const Indefinite ProtectionExpiryType = "indefinite"
+const Definite ProtectionExpiryType = "definite"
+const AllExpiryTypes ProtectionExpiryType = "all"
 
 type ListAllPagesRequest struct {
 	//The page title to start enumerating from.
@@ -43,21 +67,21 @@ type ListAllPagesRequest struct {
 	FilterRedir RedirectType `json:"apfilterredir"`
 	//Limit to pages with at least this many bytes.
 	//Type: integer
-	MaxSize string `json:"apmaxsize"`
+	MaxSize int64 `json:"apmaxsize"`
 	//
 	//Limit to pages with at most this many bytes.
 	//Type: integer
-	MinSize string `json:"apminsize"`
+	MinSize int64 `json:"apminsize"`
 	//Limit to protected pages only.
 	//Values (separate with | or alternative): edit, move, upload
-	ProtectionType ProtectionType `json:"apprtype"`
+	ProtectionTypes []ProtectionType `json:"apprtype"`
 	//Filter protections based on protection level (must be used with apprtype= parameter).
 	//Values (separate with | or alternative): Can be empty, or autoconfirmed, sysop
-	PrLevel string `json:"apprlevel"`
+	ProtectionLevels []ProtectionLevelType `json:"apprlevel"`
 	//Filter protections based on cascadingness (ignored when apprtype isn't set).
 	//One of the following values: cascading, noncascading, all
 	//Default: all
-	PrFilterCascade string `json:"apprfiltercascade"`
+	ProtectionFilterCascade string `json:"apprfiltercascade"`
 	//How many total pages to return.
 	//No more than 500 (5,000 for bots) allowed.
 	//Type: integer or max
@@ -70,7 +94,7 @@ type ListAllPagesRequest struct {
 	//Filter based on whether a page has langlinks. Note that this may not consider langlinks added by extensions.
 	//One of the following values: withlanglinks, withoutlanglinks, all
 	//Default: all
-	FilterLangLinks string `json:"apfilterlanglinks"`
+	FilterLangLinks LangLinksFilterType `json:"apfilterlanglinks"`
 	//Which protection expiry to filter the page on:
 	//indefinite
 	//Get only pages with indefinite protection expiry.
@@ -80,7 +104,7 @@ type ListAllPagesRequest struct {
 	//Get pages with any protections expiry.
 	//One of the following values: indefinite, definite, all
 	//Default: all
-	PrExpiry string `json:"apprexpiry"`
+	ProtectionExpiry ProtectionExpiryType `json:"apprexpiry"`
 }
 
 type Page struct {
@@ -125,9 +149,28 @@ func ListAllPages(request ListAllPagesRequest) (*ListAllPagesResponse, error) {
 	query.Add("list", "allpages")
 	query.Add("format", "json")
 	query.Add("apfrom", request.From)
-	query.Add("apto", request.To)
-	query.Add("aplimit", strconv.FormatInt(request.Limit, 10))
 	query.Add("apcontinue", request.Continue)
+	query.Add("apto", request.To)
+	query.Add("apprefix", request.Prefix)
+	query.Add("apnamespace", strconv.FormatInt(request.Namespace, 10))
+	query.Add("apfilterredir", string(request.FilterRedir))
+	query.Add("apmaxsize", strconv.FormatInt(request.MaxSize, 10))
+	query.Add("apminsize", strconv.FormatInt(request.MinSize, 10))
+	var prTypes []string
+	for _, prType := range request.ProtectionTypes {
+		prTypes = append(prTypes, string(prType))
+	}
+	query.Add("apprtype", strings.Join(prTypes, "|"))
+	var prLevels []string
+	for _, prLevel := range request.ProtectionLevels {
+		prLevels = append(prLevels, string(prLevel))
+	}
+	query.Add("apprlevel", strings.Join(prLevels, "|"))
+	query.Add("apprfiltercascade", request.ProtectionFilterCascade)
+	query.Add("aplimit", strconv.FormatInt(request.Limit, 10))
+	query.Add("apdir", string(request.Direction))
+	query.Add("apfilterlanglinks", string(request.FilterLangLinks))
+	query.Add("apprexpiry", string(request.ProtectionExpiry))
 	u.RawQuery = query.Encode()
 
 	// execute the request
